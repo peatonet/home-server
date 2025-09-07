@@ -1,0 +1,14 @@
+services:
+  # ---- RPIMonitor ----
+  rpi-monitor:
+    image: chrborg/rpi-monitor
+    container_name: rpi-monitor
+    environment:
+      TZ: 'Europe/Madrid'
+    volumes:
+      - /boot:/boot
+      - /sys:/dockerhost/sys:ro
+      - /etc:/dockerhost/etc:ro
+      - /proc:/dockerhost/proc:ro
+    restart: unless-stopped
+    network_mode: 'host'

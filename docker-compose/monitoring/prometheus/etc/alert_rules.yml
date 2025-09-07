@@ -1,0 +1,330 @@
+groups:
+  - name: node-exporter-alerts
+    rules:
+      ### 🧠 RAM Usage Alerts
+      - alert: HighMemoryUsageWarning
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            ⚠️ Memory usage is high on {{ $labels.instance }}
+          description: |
+            **Instance:** {{ $labels.instance }}
+            **Severity:** {{ $labels.severity }}
+
+            Memory usage is above **80%** for more than **2 minutes**.
+
+      - alert: HighMemoryUsageCritical
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: |
+            🚨 Memory usage is critically high on {{ $labels.instance }}
+          description: |
+            **Instance:** {{ $labels.instance }}
+            **Severity:** {{ $labels.severity }}
+
+            Memory usage is above **90%** for more than **2 minutes**.
+
+      ### 🔥 Memory Pressure Alerts (zram-optimized)
+      - alert: MemoryPressureWarning
+        expr: (node_memory_MemAvailable_bytes < 80 * 1024 * 1024)
+          and (
+            rate(node_vmstat_pswpout[1m]) > 5
+            or rate(node_vmstat_pswpin[1m]) > 5
+          )
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            ⚠️ Memory pressure warning on {{ $labels.instance }}
+          description: |
+            **Instance:** {{ $labels.instance }}
+            **Severity:** {{ $labels.severity }}
+
+            Early signs of memory pressure detected for more than **2 minutes**:
+            - Available memory is below **80 MB**
+            - Active swapping detected
+
+            zram is in use — high swap usage is normal, but active swap in/out may indicate pressure.
+
+      - alert: MemoryPressureCritical
+        expr: (node_memory_MemAvailable_bytes < 40 * 1024 * 1024)
+          and (
+            rate(node_vmstat_pswpout[1m]) > 20
+            or rate(node_vmstat_pswpin[1m]) > 20
+          )
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: |
+            🚨 Critical memory pressure on {{ $labels.instance }}
+          description: |
+            **Instance:** {{ $labels.instance }}
+            **Severity:** {{ $labels.severity }}
+
+            Severe memory pressure detected for more than **1 minute**:
+            - Available memory is below **40 MB**
+            - Intense swap activity is ongoing
+
+            System may be at risk of OOM despite zram. Immediate action is recommended.
+
+      ### ⚙️ CPU Usage Alerts
+      - alert: HighCPUUsageWarning
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 75
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            ⚠️ CPU usage is high on {{ $labels.instance }}
+          description: |
+            **Instance:** {{ $labels.instance }}
+            **Severity:** {{ $labels.severity }}
+
+            CPU usage is above **75%** for more than **2 minutes**.
+
+      - alert: HighCPUUsageCritical
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: |
+            🚨 CPU usage is critically high on {{ $labels.instance }}
+          description: |
+            **Instance:** {{ $labels.instance }}
+            **Severity:** {{ $labels.severity }}
+
+            CPU usage is above **85%** for more than **2 minutes**.
+            
+      ### ⚠️ High System Load (5-minute) Alerts
+      - alert: HighSystemLoad5m
+        expr: node_load5 > count without (cpu, mode) (node_cpu_seconds_total{job="node-exporter", mode="idle"})
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5-minute system load on {{ $labels.instance }}"
+          description: |
+            The 5-minute system load ({{ $value }}) is higher than the number of CPU cores,
+            indicating sustained high load for more than 10 minutes.
+
+      ### 💽 Disk Pressure Alerts (IO Wait & IOPS)
+      - alert: HighIOWaitWarning
+        expr: rate(node_cpu_seconds_total{mode="iowait"}[5m]) > 0.10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ High IO wait (warning) on {{ $labels.instance }}"
+          description: |
+            CPU is spending >10% of time waiting on I/O for over 2 minutes.
+            This may indicate slow storage or swap pressure (ZRAM in use).
+
+      - alert: HighIOWaitCritical
+        expr: rate(node_cpu_seconds_total{mode="iowait"}[5m]) > 0.25
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🚨 High IO wait (critical) on {{ $labels.instance }}"
+          description: |
+            CPU is spending >25% of time in IO wait. System likely feels slow or unresponsive.
+            Investigate disk or swap performance immediately.
+
+      - alert: HighDiskIOPSWarning
+        expr: avg_over_time(
+          ( sum by(instance) (
+              rate(node_disk_reads_completed_total{device=~"mmcblk.*|sd.*"}[2m]) +
+              rate(node_disk_writes_completed_total{device=~"mmcblk.*|sd.*"}[2m])
+          )
+          )[10m:]) > 700
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ High disk IOPS (warning) on {{ $labels.instance }}"
+          description: |
+            Average disk IOPS >700 over 5 minutes on SD/USB device.
+            This may cause performance degradation on flash-based storage.
+            Consider checking for logging loops, swap usage, or heavy IO activity.
+
+      - alert: HighDiskIOPSCritical
+        expr: avg_over_time(
+          ( sum by(instance) (
+              rate(node_disk_reads_completed_total{device=~"mmcblk.*|sd.*"}[2m]) +
+              rate(node_disk_writes_completed_total{device=~"mmcblk.*|sd.*"}[2m])
+          )
+          )[5m:]) > 1000
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🚨 High disk IOPS (critical) on {{ $labels.instance }}"
+          description: |
+            Sustained >1000 IOPS over 5 minutes on SD/USB device.
+            This level of disk activity can cause major slowdowns or wear flash storage prematurely.
+            Investigate swap, logging, misbehaving processes, or runaway services.
+
+      ### 💾 Disk Usage Alerts
+      - alert: HighDiskUsageWarning
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ Disk usage warning on {{ $labels.instance }}"
+          description: |
+            Disk usage on mount point **/** is above **80%** for more than 5 minutes.
+
+      - alert: HighDiskUsageCritical
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🚨 Critical disk usage on {{ $labels.instance }}"
+          description: |
+            Disk usage on mount point **/** is above **90%** for more than 5 minutes.
+
+      ### ⚠️ Inode usage alerts
+      - alert: HighInodeUsageWarning
+        expr: (1 - (node_filesystem_files_free{mountpoint="/"} / node_filesystem_files{mountpoint="/"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+            summary: "⚠️ Inode usage warning on {{ $labels.instance }}"
+            description: "Inode usage is above 80% on root filesystem."
+
+      - alert: HighInodeUsageCritical
+        expr: (1 - (node_filesystem_files_free{mountpoint="/"} / node_filesystem_files{mountpoint="/"})) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+            summary: "🚨 Inode usage critical on {{ $labels.instance }}"
+            description: "Inode usage is above 90% on root filesystem. System may become unstable."
+
+  - name: speedtest-exporter-alerts
+    rules:
+      ### ❗ Speedtest Exporter: No Recent Data Alert
+      - alert: SpeedtestExporterStale
+        expr: absent_over_time(speedtest_download_bits_per_second[30m]) == 1
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            ⚠️ Speedtest exporter has not provided data
+          description: |
+            No speedtest data received in the past **30 minutes**.
+            Check if the exporter is running.
+
+      ### 🚀 Speedtest Bandwidth Alerts
+      - alert: DownloadSpeedBelow800Mbps
+        expr: avg_over_time(speedtest_download_bits_per_second[30m]) < 800000000
+        for: 20m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            ⚠️ Download speed is low on {{ $labels.instance }}
+          description: |
+            Average download speed over the last **30 minutes** is below **800 Mbps**.
+
+      - alert: UploadSpeedBelow800Mbps
+        expr: avg_over_time(speedtest_upload_bits_per_second[30m]) < 800000000
+        for: 20m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            ⚠️ Upload speed is low on {{ $labels.instance }}
+          description: |
+            Average upload speed over the last **30 minutes** is below **800 Mbps**.
+
+      - alert: DownloadSpeedCriticallyLow
+        expr: avg_over_time(speedtest_download_bits_per_second[30m]) < 600000000
+        for: 20m
+        labels:
+          severity: critical
+        annotations:
+          summary: |
+            🚨 Critical: Download speed is very low on {{ $labels.instance }}
+          description: |
+            Average download speed over the last **30 minutes** is below **600 Mbps**.
+
+      - alert: UploadSpeedCriticallyLow
+        expr: avg_over_time(speedtest_upload_bits_per_second[30m]) < 600000000
+        for: 20m
+        labels:
+          severity: critical
+        annotations:
+          summary: |
+            🚨 Critical: Upload speed is very low on {{ $labels.instance }}
+          description: |
+            Average upload speed over the last **30 minutes** is below **600 Mbps**.
+
+      ### 🌐 Speedtest Exporter: Jitter & Latency Alerts
+      - alert: SpeedtestJitterHighWarning
+        expr: avg_over_time(speedtest_jitter_latency_milliseconds[30m]) > 2
+        for: 20m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            ⚠️ High jitter detected on {{ $labels.instance }}
+          description: |
+            Average jitter over the last **30 minutes** is above **2 ms**.
+
+      - alert: SpeedtestJitterHighCritical
+        expr: avg_over_time(speedtest_jitter_latency_milliseconds[30m]) > 4
+        for: 20m
+        labels:
+          severity: critical
+        annotations:
+          summary: |
+            🚨 Critical jitter detected on {{ $labels.instance }}
+          description: |
+            Average jitter over the last **30 minutes** is above **4 ms**.
+
+      - alert: SpeedtestLatencyHighWarning
+        expr: avg_over_time(speedtest_ping_latency_milliseconds[30m]) > 4
+        for: 20m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            ⚠️ High latency detected on {{ $labels.instance }}
+          description: |
+            Average latency over the last **30 minutes** is above **4 ms**.
+
+      - alert: SpeedtestLatencyHighCritical
+        expr: avg_over_time(speedtest_ping_latency_milliseconds[30m]) > 6
+        for: 20m
+        labels:
+          severity: critical
+        annotations:
+          summary: |
+            🚨 Critical latency detected on {{ $labels.instance }}
+          description: |
+            Average latency over the last **30 minutes** is above **6 ms**.
+
+      ### 🛑 Node Exporter Unreachable
+      - alert: NodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🚨 Node exporter down on {{ $labels.instance }}"
+          description: |
+            Prometheus has not received metrics from the node exporter for 2 minutes.

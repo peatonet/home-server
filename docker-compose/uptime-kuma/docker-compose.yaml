@@ -1,0 +1,17 @@
+services:
+  # ---- UPTIME KUMA ----
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    entrypoint: /bin/sh
+    command: -c "update-ca-certificates && node server/server.js"
+    dns:
+      - <UPTIME_DNS_SERVER>
+    environment:
+      - NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/custom/<YOUR_CRT_FILE>
+    volumes:
+      - ./data:/app/data
+      - ./certs:/usr/local/share/ca-certificates/custom:ro
+    restart: unless-stopped
+    ports:
+      - "3001:3001"

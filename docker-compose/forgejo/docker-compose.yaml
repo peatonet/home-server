@@ -1,0 +1,18 @@
+services:
+  # ---- FORGEJO ----
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:12.0.1
+    container_name: forgejo
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__database__DB_TYPE=sqlite3
+      - GITEA__server__DOMAIN=<FORGEJO_DOMAIN>
+      - GITEA__server__ROOT_URL=<FORGEJO_URL>
+      - GITEA__server__HTTP_PORT=3030
+    volumes:
+      - ./data:/data
+    restart: always
+    ports:
+      - "3030:3030"
+      - "2222:22"

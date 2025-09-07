@@ -1,0 +1,10 @@
+services:
+  # ---- GOTIFY ----
+ gotify:
+  image: gotify/server-arm64
+  container_name: gotify
+  volumes:
+   - ./data:/app/data
+  restart: unless-stopped
+  ports:
+   - 8008:80/tcp

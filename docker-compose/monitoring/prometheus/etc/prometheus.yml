@@ -1,0 +1,73 @@
+# ---- Global Configurations ----
+global:
+  scrape_interval: 15s
+
+# ---- Load Alerting Rules ----
+rule_files:
+  - "alert_rules.yml"
+
+# ---- Alerting ----
+alerting:
+  # ---- Alert Manager ----
+  alertmanagers:
+    - scheme: http
+      static_configs:
+        - targets: [ '<EXPORTER_IP/DOMAIN>:9093' ]
+# ---- Scraping ----
+scrape_configs:
+  # ---- CrowdSec exporter ----
+  - job_name: 'crowdsec'
+    static_configs:
+      - targets: ['<EXPORTER_IP/DOMAIN>:6060']
+
+  # ---- Pi-hole exporter ----
+  - job_name: 'pihole6-exporter'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['<EXPORTER_IP/DOMAIN>:9666']
+
+  # ---- SpeedTest exporter ----
+  - job_name: 'speedtest-exporter'
+    scrape_interval: 10m
+    scrape_timeout: 2m
+    static_configs:
+      - targets: ['<EXPORTER_IP/DOMAIN>:9798']
+
+  # ---- Uptime Kuma exporter ----
+  - job_name: "uptime"
+    scrape_interval: 30s
+    static_configs:
+        - targets: ["<EXPORTER_IP/DOMAIN>:3001"]
+    basic_auth:
+        password: <UPTIME_KUMA_PASSWORD>
+
+  # ---- WG Easy exporter ----
+  - job_name: 'wg-easy'
+    static_configs:
+      - targets: ['<EXPORTER_IP/DOMAIN>:9586']
+    metrics_path: '/metrics'
+    params:
+      format: ['prometheus']
+    scheme: 'http'
+    # Add the fallback protocol setting
+    fallback_scrape_protocol: 'PrometheusText0.0.4'
+
+  # ---- Prometheus exporter ----
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['<EXPORTER_IP/DOMAIN>:9090']
+
+  # ---- Node exporter ----
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['<EXPORTER_IP/DOMAIN>:9100']
+
+  # ---- Loki exporter ----
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['<EXPORTER_IP/DOMAIN>:3100']
+
+  # ---- Time Machine exporter ----
+  - job_name: 'timemachine'
+    static_configs:
+      - targets: ['<EXPORTER_IP/DOMAIN>:9111']

@@ -1,0 +1,2 @@
+# Changing default UI port from 80 to 8080 to integrate it with Nginx Proxy Manager
+  port = "8080o,8443os,[::]:8080o,[::]:8443os" ### CHANGED, default = "80o,443os,[::]:80o,[::]:443os"

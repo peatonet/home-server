@@ -1,0 +1,6 @@
+https://grafana.com/grafana/dashboards/13665-speedtest-exporter-dashboard/
+https://github.com/louislam/uptime-kuma/blob/unofficial/grafana-dashboard/uptime-kuma.json
+https://grafana.com/grafana/dashboards/18667-uptime-kuma-metrics/
+https://grafana.com/grafana/dashboards/21043-pi-hole-ver6-stats/
+https://grafana.com/grafana/dashboards/13942-wireguard/
+https://grafana.com/grafana/dashboards/1860-node-exporter-full/

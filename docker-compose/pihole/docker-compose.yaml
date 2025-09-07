@@ -1,0 +1,33 @@
+# More info at https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
+services:
+  # ---- PiHOLE ----
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    cap_add:
+      - NET_ADMIN # Required if you are using Pi-hole as your DHCP server, else not needed
+    environment:
+      TZ: 'Europe/Madrid'
+      WEBPASSWORD: '<PIHOLE_WEB_PASSWORD>'
+    volumes:
+      - './etc-pihole:/etc/pihole'
+      - './etc-dnsmasq.d:/etc/dnsmasq.d'
+      - '/var/log/pihole:/var/log/pihole'
+      - '/var/log/lighttpd:/var/log/lighttpd'
+    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
+    # For DHCP it is recommended to remove these ports and instead add: network_mode: "host"
+    network_mode: host
+    restart: unless-stopped
+  # ---- PIHOLE6 EXPORTER ----
+  pihole6-exporter:
+    image: amonacoos/pihole6_exporter:arm64
+    container_name: pihole6_exporter
+    environment:
+      - PIHOLE_HOST=<PIHOLE_HOST>
+      - PIHOLE_API_KEY=<PIHOLE_API_KEY>
+      - PIHOLE_SCHEME=http
+      - PIHOLE_PORT=80
+    restart: unless-stopped
+    ports:
+      - "9666:9666"
+# https://hub.docker.com/r/amonacoos/pihole6_exporter

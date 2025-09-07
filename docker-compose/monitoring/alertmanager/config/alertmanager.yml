@@ -1,0 +1,20 @@
+route:
+  receiver: 'telegram'
+  group_by: [alertname]
+  repeat_interval: 1h
+  group_wait: 10s
+  group_interval: 5m
+receivers:
+  - name: 'mail'
+    email_configs:
+      - smarthost: 'smtp.gmail.com:465'
+        auth_username: '<EMAIL>'
+        auth_password: "<PASSWORD>"
+        from: '<SOURCE_EMAIL>'
+        to: '<DESTINATION_EMAIL>'
+  - name: telegram
+    telegram_configs:
+      - bot_token: <TELEGRAM_TOKEN>
+        chat_id: <TELEGRAM_CHAT_ID>
+        send_resolved: true
+        parse_mode: ''

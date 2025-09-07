@@ -1,0 +1,46 @@
+services:
+  # ---- WG Easy ----
+  wg-easy:
+    image: ghcr.io/wg-easy/wg-easy:15
+    container_name: wg-easy
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+    environment:
+      - WG_PRE_UP=iptables -t nat -F; iptables -F;
+      - WG_ALLOWED_IPS=<YOUR_LAN>
+      - WG_DEFAULT_DNS=<YOUR_DNS_SERVER>
+      - WG_HOST=<WG_EASY_HOST>
+      - WG_PORT=51820
+      - INSECURE=true
+      - WG_IPV6=false
+    volumes:
+      - ./wireguard:/etc/wireguard
+    restart: unless-stopped
+    ports:
+      - 51820:51820/udp
+      - 51821:51821/tcp
+      - 9586:9586/tcp
+    networks:
+      - wg-easy
+  # ---- WG Exporter ----
+  wgexporter:
+    image: mindflavor/prometheus-wireguard-exporter:3.6.3
+    container_name: wgexporter
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    command:
+      - '--prepend_sudo=true'
+    environment:
+      PROMETHEUS_WIREGUARD_EXPORTER_VERBOSE_ENABLED: "false"
+    restart: unless-stopped
+    network_mode: "container:wg-easy"
+    depends_on:
+      - wg-easy
+networks:
+  wg-easy:
+    driver: bridge

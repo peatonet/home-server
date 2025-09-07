@@ -3,18 +3,17 @@ services:
     image: amonacoos/trivy-with-docker:arm64
     container_name: trivy
     environment:
-      - GOTIFY_ENDPOINT=<GOTIFY_IP>:8008
-      - GOTIFY_TOKEN=<GOTIFY_TOKEN>
-      - TELEGRAM_CHAT_ID=<TELEGRAM_CHAT_ID>
-      - TELEGRAM_BOT_TOKEN=<TELEGRAM_BOT_TOKEN>
+      GOTIFY_ENDPOINT: "<GOTIFY_IP>:8008"
+      GOTIFY_TOKEN: "<GOTIFY_TOKEN>"
+      TELEGRAM_CHAT_ID: "<TELEGRAM_CHAT_ID>"
+      TELEGRAM_BOT_TOKEN: "<TELEGRAM_BOT_TOKEN>"
     entrypoint: /bin/sh
     command: >
       -c '
-      touch /trivy.log;
+      set -e
 
       while true; do
-        echo "Starting scan at:" $$(date);
-        echo "" > /trivy.log;
+        echo "Starting scan at: $$(date)" | tee -a /trivy.log
         ALERT=0;
 
         for image in $$(docker ps --format "{{.Image}}" | sort -u); do
@@ -24,7 +23,7 @@ services:
           VULN_COUNT=$$(echo "$$OUTPUT" | jq "[.Results[].Vulnerabilities? // [] | length] | add // 0");
           VULN_COUNT=$${VULN_COUNT:-0}
           echo "Vulnerabilities found: $$VULN_COUNT"
-          echo "trivy_vulnerabilities{image=\"$$image\"} $$VULN_COUNT" >> /trivy.log;
+          echo "$$image: $$VULN_COUNT" >> /trivy.log;
           if [ -n "$$VULN_COUNT" ] && [ "$$VULN_COUNT" -gt 0 ]; then
             ALERT=1;
           fi;
@@ -32,24 +31,33 @@ services:
 
         if [ "$$ALERT" = "1" ]; then
           # Gotify alert
-          curl -s -X POST "$${GOTIFY_ENDPOINT}?token=$${GOTIFY_TOKEN}" \
+          if ! curl -s -X POST "$${GOTIFY_ENDPOINT}?token=$${GOTIFY_TOKEN}" \
             -F "title=Trivy Alert" \
             -F "message=🦠 One or more container images have critical/high vulnerabilities." \
-            -F "priority=5";
+            -F "priority=5"; then
+                echo "⚠️ Failed to send Gotify alert" >> /trivy.log;
+            else
+              echo "✅ Gotify alert sent" >> /trivy.log;
+            fi
 
           # Telegram alert
-          curl -s -X POST "https://api.telegram.org/bot$${TELEGRAM_BOT_TOKEN}/sendMessage" \
+          if ! curl -s -X POST "https://api.telegram.org/bot$${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="$${TELEGRAM_CHAT_ID}" \
             -d text="🦠 *Trivy Alert*: One or more container images have critical/high vulnerabilities." \
-            -d parse_mode=Markdown;
+            -d parse_mode=Markdown; then
+            echo "⚠️ Failed to send Telegram alert" >> /trivy.log;
+          else
+            echo "✅ Telegram alert sent" >> /trivy.log;
+          fi
         fi;
 
-        echo "Scan complete, sleeping 24 hours seconds...";
+        echo "Scan complete, sleeping 24 hours..." | tee -a /trivy.log;
+        echo "" >> /trivy.log;
         sleep 86400;
       done
       '
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./trivy-cache:/root/.cache/trivy
+      - ./cache:/root/.cache/trivy
       - ./trivy.log:/trivy.log
     restart: unless-stopped

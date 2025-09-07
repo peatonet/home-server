@@ -14,7 +14,7 @@ services:
       - ./loki/loki-config.yml:/etc/loki/loki-config.yml
       - ./loki/data:/loki
     command: -config.file=/etc/loki/loki-config.yml -config.expand-env=true
-    restart: always
+    restart: unless-stopped
     ports:
       - "3100:3100"
   # ---- PROMTAIL ----
@@ -27,6 +27,6 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
-    restart: always
+    restart: unless-stopped
     depends_on:
       - loki

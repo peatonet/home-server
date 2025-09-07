@@ -10,11 +10,11 @@ services:
     entrypoint: /bin/sh
     command: >
       -c '
-      mkdir -p /metrics;
+      touch /trivy.log;
 
       while true; do
         echo "Starting scan at:" $$(date);
-        echo "" > /metrics/trivy.prom;
+        echo "" > /trivy.log;
         ALERT=0;
 
         for image in $$(docker ps --format "{{.Image}}" | sort -u); do
@@ -24,7 +24,7 @@ services:
           VULN_COUNT=$$(echo "$$OUTPUT" | jq "[.Results[].Vulnerabilities? // [] | length] | add // 0");
           VULN_COUNT=$${VULN_COUNT:-0}
           echo "Vulnerabilities found: $$VULN_COUNT"
-          echo "trivy_vulnerabilities{image=\"$$image\"} $$VULN_COUNT" >> /metrics/trivy.prom;
+          echo "trivy_vulnerabilities{image=\"$$image\"} $$VULN_COUNT" >> /trivy.log;
           if [ -n "$$VULN_COUNT" ] && [ "$$VULN_COUNT" -gt 0 ]; then
             ALERT=1;
           fi;
@@ -51,14 +51,5 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./trivy-cache:/root/.cache/trivy
-      - ./metrics:/metrics
-    restart: unless-stopped
-
-  trivy-metrics-server:
-    image: nginx:alpine
-    container_name: trivy-metrics-server
-    volumes:
-      - ./metrics:/usr/share/nginx/html:ro
-    ports:
-      - "8085:80"
+      - ./trivy.log:/trivy.log
     restart: unless-stopped

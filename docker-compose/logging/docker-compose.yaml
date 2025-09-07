@@ -5,21 +5,23 @@ services:
     container_name: dozzle
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
     ports:
       - 8087:8080
+  # ---- LOKI ----
   loki:
-    image: grafana/loki:2.9.0
+    image: grafana/loki:latest-arm64
     container_name: loki
     volumes:
       - ./loki/loki-config.yml:/etc/loki/loki-config.yml
       - ./loki/data:/loki
     command: -config.file=/etc/loki/loki-config.yml -config.expand-env=true
-    restart: unless-stopped
+    restart: always
     ports:
       - "3100:3100"
   # ---- PROMTAIL ----
   promtail:
-    image: grafana/promtail:2.9.0
+    image: grafana/promtail:latest-arm64
     container_name: promtail
     command: -config.file=/etc/promtail/promtail-config.yml
     volumes:
@@ -27,6 +29,6 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
-    restart: unless-stopped
+    restart: always
     depends_on:
       - loki

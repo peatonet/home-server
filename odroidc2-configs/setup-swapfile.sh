@@ -2,8 +2,25 @@
 
 SWAPFILE="/swapfile"
 SWAPSIZE="512M"
+OLDSWAP="/var/swap"
 
-# Check if swapfile already exists
+# --- REMOVE /var/swap if it exists ---
+if swapon --show | grep -q "$OLDSWAP"; then
+  echo "Disabling existing swap at $OLDSWAP..."
+  sudo swapoff "$OLDSWAP"
+fi
+
+if [ -f "$OLDSWAP" ]; then
+  echo "Removing old swapfile at $OLDSWAP..."
+  sudo rm -f "$OLDSWAP"
+fi
+
+if grep -q "$OLDSWAP" /etc/fstab; then
+  echo "Removing $OLDSWAP entry from /etc/fstab..."
+  sudo sed -i "\|$OLDSWAP|d" /etc/fstab
+fi
+
+# --- CREATE NEW SWAPFILE IF NEEDED ---
 if [ -f "$SWAPFILE" ]; then
   echo "Swapfile $SWAPFILE already exists."
 else
@@ -17,11 +34,11 @@ else
   echo "Swapfile created."
 fi
 
-# Enable swapfile now
+# --- ENABLE SWAPFILE NOW ---
 echo "Enabling swapfile..."
 sudo swapon $SWAPFILE
 
-# Check if entry already in /etc/fstab
+# --- ADD TO FSTAB IF NOT ALREADY THERE ---
 if grep -q "^$SWAPFILE" /etc/fstab; then
   echo "Swapfile entry already exists in /etc/fstab."
 else
@@ -29,7 +46,7 @@ else
   echo "$SWAPFILE none swap sw 0 0" | sudo tee -a /etc/fstab
 fi
 
-# Show swap status
+# --- SHOW SWAP STATUS ---
 echo "Current swap status:"
 swapon --show
 free -h

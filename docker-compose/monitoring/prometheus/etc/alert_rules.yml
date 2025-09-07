@@ -328,3 +328,15 @@ groups:
           summary: "🚨 Node exporter down on {{ $labels.instance }}"
           description: |
             Prometheus has not received metrics from the node exporter for 2 minutes.
+
+  - name: trivy-alerts
+    rules:
+      ### 🦠 Trivy: Vulnerabilities found
+      - alert: TrivyVulnerabilitiesDetected
+        expr: sum(trivy_vulnerabilities) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Vulnerabilities detected"
+          description: "🦠 Trivy found one or more high/critical vulnerabilities in your container images. Please check Gotify for more information"
